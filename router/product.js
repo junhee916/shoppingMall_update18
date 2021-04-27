@@ -1,7 +1,37 @@
 const express = require('express')
 const productModel = require('../model/product')
 const multer = require('multer')
+const checkAuth = require('../middleware/check-auth')
 const router = express.Router()
+
+const storage = multer.diskStorage(
+    {
+        destination : function(req, file, cb){
+            cb(null, './uploads')
+        },
+        filename : function (req, file, cb){
+            cb(null, file.originalname)
+        }
+    }
+)
+
+const fileFilter = (req, file, cb) => {
+
+    if(file.mimetype === 'image/jpeg' || file.mimetype === 'image/png'){
+        cb(null, true)
+    }
+    else{
+        cb(null, false)
+    }
+}
+
+const upload = multer({
+    storage : storage,
+    limit : {
+        filesize : 1024 * 1024 * 5
+    },
+    fileFilter : fileFilter
+})
 
 // get products
 router.get("/", (req, res) => {
@@ -30,7 +60,7 @@ router.get("/", (req, res) => {
 })
 
 // detail get product
-router.get("/:productId", (req, res) => {
+router.get("/:productId", checkAuth, (req, res) => {
 
     const id = req.params.productId
 
@@ -61,12 +91,14 @@ router.get("/:productId", (req, res) => {
 })
 
 // register product
-router.post("/", (req, res) => {
+router.post("/", checkAuth, upload.single('productImage'), (req, res) => {
 
+    const {name, price} = req.body
     const newProduct = new productModel(
         {
-            name : req.body.productName,
-            price : req.body.productPrice
+            name,
+            price,
+            productImage : req.file.path
         }
     )
 
@@ -80,6 +112,7 @@ router.post("/", (req, res) => {
                     id : product._id,
                     name : product.name,
                     price : product.price,
+                    productImage : product.productImage,
                     createdAt : product.createdAt
                 }
             })
@@ -92,7 +125,7 @@ router.post("/", (req, res) => {
 })
 
 // update product
-router.patch("/:productId", (req, res) => {
+router.patch("/:productId", checkAuth, (req, res) => {
 
     const id = req.params.productId
 
@@ -122,7 +155,7 @@ router.patch("/:productId", (req, res) => {
 })
 
 // delete products
-router.delete("/", (req, res) => {
+router.delete("/", checkAuth, (req, res) => {
 
     productModel
         .remove()
@@ -139,7 +172,7 @@ router.delete("/", (req, res) => {
 })
 
 // detail delete product
-router.delete("/:productId", (req, res) => {
+router.delete("/:productId", checkAuth, (req, res) => {
 
     const id = req.params.productId
 
